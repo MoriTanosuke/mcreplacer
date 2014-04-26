@@ -2,6 +2,7 @@ import com.mojang.nbt.CompoundTag;
 import com.mojang.nbt.ListTag;
 import com.mojang.nbt.NbtIo;
 import de.kopis.minecraft.RegionPrinter;
+import net.minecraft.world.level.chunk.storage.RegionFile;
 import org.junit.Test;
 
 import java.io.File;
@@ -32,46 +33,9 @@ public class RegionPrinterTest {
         final List<File> regionFiles = regionPrinter.getRegionFiles("src/test/resources/saves", worldName);
         assertEquals(2, regionFiles.size());
         final List<ListTag> sections = regionPrinter.getSectionsFromChunk(
-                regionFiles.get(0), 12, 3);
+                new RegionFile(regionFiles.get(0)), 12, 3);
         assertEquals("Unexpected number of sections found", 1, sections.size());
-
-        printSection((CompoundTag) sections.get(0).get(0));
-    }
-
-    byte Nibble4(byte[] arr, int index) {
-        return (byte) (index % 2 == 0 ? arr[index / 2] & 0x0F : (arr[index / 2] >> 4) & 0x0F);
-    }
-
-    private void printSection(CompoundTag section) {
-        byte[] data = section.getByteArray("Data");
-        byte[] blocks = section.getByteArray("Blocks");
-        byte[] skyLight = section.getByteArray("SkyLight");
-        byte[] blockLight = section.getByteArray("BlockLight");
-        byte[] add = section.getByteArray("Add");
-        byte y = section.getByte("Y");
-        printBlock(data, blocks, add);
-    }
-
-    private void printBlock(byte[] data, byte[] blocks, byte[] add) {
-        for (int y = 0; y < 16; y++) {
-            for (int z = 0; z < 16; z++) {
-                for (int x = 0; x < 16; x++) {
-                    int blockPos = y * 16 * 16 + z * 16 + x;
-                    byte blockIdA = blocks[blockPos];
-                    byte blockIdB = 0;
-                    short blockId = (short) (blockIdA);
-                    if (add != null && add.length > 0) {
-                        blockId += (blockIdB << 8);
-                    }
-                    byte blockData = Nibble4(data, blockPos);
-
-                    System.out.println(String.format("%d %d %d: id=%d data=%d", y, z, x, blockId, blockData));
-                    if (blockId == 56) {
-                        System.out.println("DIAMONDS!");
-                    }
-                }
-            }
-        }
+        //regionPrinter.printSection((CompoundTag) sections.get(0).get(0));
     }
 
     @Test

@@ -27,6 +27,14 @@ public class RegionPrinter {
         RegionFile region = new RegionFile(f);
         for (int x = 0; x < 32; x++) {
             for (int z = 0; z < 32; z++) {
+                List<ListTag> sections = getSectionsFromChunk(region, x, z);
+                if (!sections.isEmpty()) {
+                    System.out.println(String.format("CHUNK %d %d", x, z));
+                    printSection((CompoundTag) sections.get(0).get(0));
+                } else {
+                    System.out.println(String.format("No section found in chunk %d %d", x, z));
+                }
+                /*
                 try (DataInputStream inputStream = region.getChunkDataInputStream(x, z)) {
                     if (inputStream != null) {
                         System.out.println(String.format("CHUNK %d %d", x, z));
@@ -36,6 +44,7 @@ public class RegionPrinter {
                         System.out.println(String.format("No data found in chunk %d %d", x, z));
                     }
                 }
+                */
             }
         }
     }
@@ -64,19 +73,52 @@ public class RegionPrinter {
         return regionFiles;
     }
 
-    public List<ListTag> getSectionsFromChunk(File regionFile, int x, int z) throws IOException {
+    public List<ListTag> getSectionsFromChunk(RegionFile region, int x, int z) throws IOException {
         List<ListTag> blocks = new ArrayList<>();
 
-        RegionFile region = new RegionFile(regionFile);
         try (DataInputStream inputStream = region.getChunkDataInputStream(x, z)) {
             if (inputStream != null) {
                 System.out.println(String.format("CHUNK %d %d", x, z));
                 CompoundTag chunkData = NbtIo.read(inputStream);
                 blocks.add(chunkData.getCompound("Level").getList("Sections"));
-            } else {
-                System.out.println(String.format("No data found in chunk %d %d", x, z));
             }
         }
         return blocks;
+    }
+
+    private byte nibble4(byte[] arr, int index) {
+        return (byte) (index % 2 == 0 ? arr[index / 2] & 0x0F : (arr[index / 2] >> 4) & 0x0F);
+    }
+
+    public void printSection(CompoundTag section) {
+        byte[] data = section.getByteArray("Data");
+        byte[] blocks = section.getByteArray("Blocks");
+        byte[] skyLight = section.getByteArray("SkyLight");
+        byte[] blockLight = section.getByteArray("BlockLight");
+        byte[] add = section.getByteArray("Add");
+        byte y = section.getByte("Y");
+        printBlock(data, blocks, add);
+    }
+
+    private void printBlock(byte[] data, byte[] blocks, byte[] add) {
+        for (int y = 0; y < 16; y++) {
+            for (int z = 0; z < 16; z++) {
+                for (int x = 0; x < 16; x++) {
+                    int blockPos = y * 16 * 16 + z * 16 + x;
+                    byte blockIdA = blocks[blockPos];
+                    byte blockIdB = 0;
+                    short blockId = (short) (blockIdA);
+                    if (add != null && add.length > 0) {
+                        blockId += (blockIdB << 8);
+                    }
+                    byte blockData = nibble4(data, blockPos);
+
+                    System.out.println(String.format("%d %d %d: id=%d data=%d", y, z, x, blockId, blockData));
+                    if (blockId == 56) {
+                        System.out.println("DIAMONDS!");
+                    }
+                }
+            }
+        }
     }
 }
